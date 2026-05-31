@@ -104,7 +104,8 @@ export default function MarketInsightsView({ signals = [] }: MarketInsightsViewP
       });
 
       if (!response.ok) {
-        throw new Error('对话推理引擎暂时繁忙，请重新触发');
+        const errBody = await response.json().catch(() => ({}));
+        throw new Error(errBody?.error || `HTTP ${response.status}`);
       }
 
       const data = await response.json();

@@ -1,21 +1,57 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { GoogleGenAI } from "@google/genai";
+import { ChatOpenAI } from '@langchain/openai';
+import { createReactAgent } from '@langchain/langgraph/prebuilt';
+import { MemorySaver } from '@langchain/langgraph';
+import { HumanMessage, SystemMessage, isAIMessage } from '@langchain/core/messages';
 
-// Lazy initialize Gemini client to adhere to agent constraints (resilient to missing keys)
-let aiClient: GoogleGenAI | null = null;
+// ---------------------------------------------------------------------------
+// LangGraph.js Agent Setup
+// ---------------------------------------------------------------------------
+// Lazy initialization to keep cold-start light and tolerate missing config.
+// The agent is OpenAI-compatible: works with OpenAI, Azure OpenAI, DeepSeek,
+// vLLM, OpenRouter, Together, Groq, or any self-hosted gateway exposing the
+// OpenAI Chat Completions schema.
+// ---------------------------------------------------------------------------
 
-function getAiClient(): GoogleGenAI {
-  if (!aiClient) {
-    aiClient = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
-    });
+const SYSTEM_PROMPT =
+  'You are MarAI, a premium data intelligence platform and core decision intelligence agent. ' +
+  'Speak in highly elegant, objective, standard Simplified Chinese. ' +
+  'Present information clearly, with beautiful spacing, rich bullet points, and appropriate professional styling. ' +
+  'Use Markdown for structuring your responses.';
+
+let agentInstance: ReturnType<typeof createReactAgent> | null = null;
+
+function getAgent() {
+  if (agentInstance) return agentInstance;
+
+  const apiKey = process.env.LANGGRAPH_LLM_API_KEY;
+  const baseURL = process.env.LANGGRAPH_LLM_BASE_URL;
+  const model = process.env.LANGGRAPH_LLM_MODEL || 'gpt-4o-mini';
+  const temperature = Number(process.env.LANGGRAPH_LLM_TEMPERATURE ?? '0.2');
+  const maxTokensRaw = process.env.LANGGRAPH_LLM_MAX_TOKENS;
+  const maxTokens = maxTokensRaw ? Number(maxTokensRaw) : 2048;
+
+  if (!apiKey) {
+    throw new Error('LANGGRAPH_LLM_API_KEY is not configured');
   }
-  return aiClient;
+
+  const llm = new ChatOpenAI({
+    apiKey,
+    model,
+    temperature,
+    maxTokens,
+    // configuration.baseURL applies to OpenAI-compatible gateways.
+    ...(baseURL ? { configuration: { baseURL } } : {}),
+  });
+
+  agentInstance = createReactAgent({
+    llm,
+    // No tools wired in by default — extend here (e.g. retrieval, web search).
+    tools: [],
+    checkpointSaver: new MemorySaver(),
+  });
+
+  return agentInstance;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -24,45 +60,59 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { message } = req.body;
-    
-    if (!message) {
-      return res.status(400).json({ error: "消息内容不能为空" });
+    const { message, threadId } = req.body ?? {};
+
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: '消息内容不能为空' });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      // Simulate reply if key is not configured
+    if (!process.env.LANGGRAPH_LLM_API_KEY) {
+      // Fallback simulation when the agent backend is not configured.
       return res.json({
-        text: `💡 **【MarAI 数据智能系统提示：Next.js 演示模式】**\n由于系统当前未配置 \`GEMINI_API_KEY\` 凭证，本 Next.js 节点已自动为您调配高度仿真的本地分析引擎。配置 API 密钥后，系统将为您提供实时的、网络检索增强后的权威市场分析。\n\n针对您的提问 **「${message}」**，MarAI 模拟计算出以下市场洞察指标：\n\n1. **宏观景气特征分析**：该提问涉及的数据流当前表现出周期间隔的上升阻力，置信度判定为 **91.4%**。\n2. **数据集同步可用度**：关联的 Amazon S3 与 Snowflake 数据集已在新 Next.js 微服务体系中激活连接状态。\n3. **多维推理结论**：建议聚焦行业核心转折节点，通过「数据归档」板块进一步清洗历史卷卷宗以微调决策误差。\n\n*您可在 **Settings（设置）** 或 **AI Studio 平台环境的 Secrets 管理面板** 中配置真实的 API 密钥。*`,
+        text:
+          `💡 **【MarAI 数据智能系统提示：LangGraph 演示模式】**\n` +
+          `当前未配置 \`LANGGRAPH_LLM_API_KEY\`，本节点已自动切换至本地仿真分析引擎。配置 LangGraph 端点后，将由 LangGraph.js 智能体提供实时分析。\n\n` +
+          `针对您的提问 **「${message}」**，MarAI 模拟得出以下指标：\n\n` +
+          `1. **景气特征**：周期间隔上升阻力，置信度 **91.4%**。\n` +
+          `2. **数据集状态**：Amazon S3 / Snowflake 已连接。\n` +
+          `3. **建议**：聚焦行业转折节点，结合「数据归档」清洗历史卷宗以微调决策误差。\n\n` +
+          `*请在 \`.env\` 中配置 \`LANGGRAPH_LLM_*\` 系列变量后重启服务。*`,
         sources: [
-          { title: "MarAI 宏观分析知识库 (Next.js 节点)", uri: "#" },
-          { title: "AWS 与 Snowflake 数据集成模型", uri: "#" }
-        ]
+          { title: 'MarAI 宏观分析知识库 (LangGraph 节点)', uri: '#' },
+          { title: 'AWS 与 Snowflake 数据集成模型', uri: '#' },
+        ],
       });
     }
 
-    const ai = getAiClient();
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: message,
-      config: {
-        systemInstruction: "You are MarAI, a premium data intelligence platform and core decision intelligence agent. Speak in highly elegant, objective, standard Simplified Chinese. Present information clear, with beautiful spacing, rich bullet points, and appropriate professional styling context. Use Markdown for structuring your responses.",
-        tools: [{ googleSearch: {} }]
+    const agent = getAgent();
+
+    const finalState = await agent.invoke(
+      {
+        messages: [
+          new SystemMessage(SYSTEM_PROMPT),
+          new HumanMessage(message),
+        ],
+      },
+      {
+        configurable: { thread_id: threadId || 'marai-default' },
       }
-    });
+    );
 
-    const text = response.text || "无法生成有效的智能分析，请稍后重试。";
-    
-    // Extract url groundings
-    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-    const sources = chunks ? chunks.map((c: any) => ({
-      title: c.web?.title || c.web?.uri || "Grounding Reference",
-      uri: c.web?.uri
-    })).filter((s: any) => s.uri) : [];
+    // Extract the last AI message as the agent's reply.
+    const messages = (finalState as any).messages ?? [];
+    const lastAi = [...messages].reverse().find((m: any) => isAIMessage(m));
+    const text =
+      typeof lastAi?.content === 'string'
+        ? lastAi.content
+        : Array.isArray(lastAi?.content)
+        ? lastAi.content.map((c: any) => c?.text ?? '').join('')
+        : '无法生成有效的智能分析，请稍后重试。';
 
-    res.json({ text, sources });
+    return res.json({ text, sources: [] });
   } catch (err: any) {
-    console.error("Gemini Next.js Inference error:", err);
-    res.status(500).json({ error: err?.message || "服务器端多模态推理计算遇到了问题" });
+    console.error('LangGraph inference error:', err);
+    return res
+      .status(500)
+      .json({ error: err?.message || '服务器端 LangGraph 推理计算遇到了问题' });
   }
 }
