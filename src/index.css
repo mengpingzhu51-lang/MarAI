@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Serif:wght@400;500;600;700;800&family=Public+Sans:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-headline: "Noto Serif", "serif";
+  --font-display: "Noto Serif", "serif";
+  --font-body: "Inter", sans-serif;
+  --font-label: "Public Sans", sans-serif;
+  
+  --color-surface-dim: #dbdadb;
+  --color-surface-container-highest: #e3e2e3;
+  --color-primary: #094cb2;
+  --color-tertiary-fixed: #f9e37a;
+  --color-on-error: #ffffff;
+  --color-on-primary-container: #e7ebff;
+  --color-on-surface: #1b1c1d;
+  --color-on-secondary-fixed: #171c20;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #dfe3e8;
+  --color-surface-bright: #faf9fa;
+  --color-inverse-primary: #b1c5ff;
+  --color-on-secondary-fixed-variant: #42474b;
+  --color-surface-tint: #2259bf;
+  --color-secondary-fixed: #dfe3e8;
+  --color-inverse-surface: #303031;
+  --color-error-container: #ffdad6;
+  --color-on-background: #1b1c1d;
+  --color-outline-variant: #c3c6d5;
+  --color-on-secondary-container: #606569;
+  --color-primary-fixed-dim: #b1c5ff;
+  --color-surface-variant: #e3e2e3;
+  --color-tertiary-fixed-dim: #dcc661;
+  --color-surface-container-low: #f5f3f4;
+  --color-on-primary-fixed-variant: #00419d;
+  --color-tertiary-container: #bfab49;
+  --color-surface-container: #efedee;
+  --color-primary-container: #3366cc;
+  --color-surface-container-lowest: #ffffff;
+  --color-on-primary-fixed: #001946;
+  --color-secondary-fixed-dim: #c2c7cc;
+  --color-surface: #faf9fa;
+  --color-on-tertiary-container: #4a3f00;
+  --color-on-tertiary: #ffffff;
+  --color-outline: #737784;
+  --color-error: #ba1a1a;
+  --color-on-primary: #ffffff;
+  --color-on-tertiary-fixed-variant: #524600;
+  --color-on-surface-variant: #434653;
+  --color-inverse-on-surface: #f2f0f1;
+  --color-background: #faf9fa;
+  --color-on-error-container: #93000a;
+  --color-primary-fixed: #d9e2ff;
+  --color-on-tertiary-fixed: #211b00;
+  --color-tertiary: #6d5e00;
+  --color-secondary: #5a5f63;
+  --color-surface-container-high: #e9e8e9;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-on-surface);
+    font-family: var(--font-body);
+  }
+}

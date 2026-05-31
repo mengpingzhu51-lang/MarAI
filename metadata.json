@@ -1,0 +1,6 @@
+{
+  "name": "Alexandria Data Intelligence",
+  "description": "A highly premium full-suite Data Intelligence and decision workspace, encompassing deep market insights, interactive team management, secure global settings, and historical digital archives.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
